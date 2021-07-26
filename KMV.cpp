@@ -131,23 +131,19 @@ int main(int argc, char * argv[])
     srand(time(0));
     
     //read headers    
-    //appConfig = parseArgs(argc, argv);
-    //vector<net_flow> data = readCSV(appConfig.filename);
-    //cout<<data[0].value<<" cabou "<<endl;
-
-    //meter um rabin karp
-
-    // long long k = 40;
-    // KMV sketch(k, data.size());
-
-    string nome = "A";
-    string nome2 = "Google";
+    appConfig = parseArgs(argc, argv);
+    vector<net_flow> data = readCSV(appConfig.filename);
 
     hash<string> hasher;
-    auto hashed = hasher(nome);
-    auto hashed2 = hasher(nome2);
-    cout<<nome<<" "<<hashed<<endl;
-    cout<<nome2<<" "<<hashed2<<endl;
+
+    long long k = 40;
+    KMV sketch(k, data.size());
+
+    for(int i=0;i<10;i++){
+        auto hashed = hasher(data[i].value);
+        sketch.update(hashed);
+    }
+    cout<<sketch.query()<<endl;
          
     return 0;
 }
