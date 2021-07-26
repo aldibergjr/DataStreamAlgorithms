@@ -22,8 +22,8 @@ struct netComparator{
 
 struct CONFIGS {
     int field_no;
-    int error_bound;
-    int error_probability;
+    double error_bound;
+    double error_probability;
     int size;
     string filename;
 };
@@ -57,9 +57,9 @@ CONFIGS parseArgs(int argc, char * argv[]){
         if(paramName.compare("--target") == 0){
             appConfig.field_no = stoi(argv[++i]);
         }else if(paramName.compare("--eps") == 0){
-            appConfig.error_bound = stoi(argv[++i]);
+            appConfig.error_bound = stod(argv[++i]);
         }else if(paramName.compare("--delta") == 0){
-            appConfig.error_probability = stoi(argv[++i]);
+            appConfig.error_probability = stod(argv[++i]);
         } else {
             appConfig.filename = argv[i];
         }
@@ -129,21 +129,40 @@ long long KMV::query(){
 int main(int argc, char * argv[]) 
 {
     srand(time(0));
+    clock_t tStart = clock();
     
     //read headers    
     appConfig = parseArgs(argc, argv);
     vector<net_flow> data = readCSV(appConfig.filename);
+    set<long long> real;
 
     hash<string> hasher;
 
-    long long k = 40;
-    KMV sketch(k, data.size());
-
-    for(int i=0;i<10;i++){
-        auto hashed = hasher(data[i].value);
+    long long m = data.size();
+    long long R = m*m*m;
+    /*
+        k = max(
+            4m/thetaR,
+            32/theta^2*1/delta
+        )
+    */
+    long long k = max<long long int>(
+        ((4*m)/(appConfig.error_bound*R)),
+        ((1/appConfig.error_probability)*(32/(appConfig.error_bound*appConfig.error_bound)))
+    );
+    
+    KMV sketch(k, m);
+    
+    cout<< k <<endl;
+    cout<< m <<endl;
+    for(auto d:data){
+        auto hashed = hasher(d.value);
+        real.insert(hashed);
         sketch.update(hashed);
     }
-    cout<<sketch.query()<<endl;
+    cout<<"duration: "<<clock() - tStart<<endl<<endl;
+
+    cout<<"h0 "<<sketch.query()<<" "<<real.size()<<endl;
          
     return 0;
 }
