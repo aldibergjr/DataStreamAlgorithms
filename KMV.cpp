@@ -9,7 +9,7 @@
 using namespace std;
 
 struct net_flow{
-    string id;
+    string value;
     int weight;
     string param;
 } ;
@@ -67,14 +67,6 @@ CONFIGS parseArgs(int argc, char * argv[]){
     return appConfig;
 }
 
-struct sketch{
-    vector<net_flow> H;
-    vector<net_flow> C;
-    float t;
-};
-
-sketch sample;
-
 vector<net_flow> readCSV( string input_f){
     ifstream input(input_f);
     //read headers 
@@ -85,11 +77,8 @@ vector<net_flow> readCSV( string input_f){
         net_flow data_line;
         vector<string> line = readCsvLine(input);
        
-        data_line.id = line[appConfig.field_no];
-        //data_line.param = line[appConfig.search_col];
-        //data_line.weight = stoi(line[appConfig.weight_col]);
-        if(sample.H.size() > appConfig.size)
-            cout << sample.t << endl;
+        data_line.value = line[appConfig.field_no];
+
         data.push_back(data_line);
     }
     return data;
@@ -137,39 +126,28 @@ long long KMV::query(){
         return (R * k)/ min_vals[k-1];
 }
 
-
-
 int main(int argc, char * argv[]) 
 {
     srand(time(0));
     
     //read headers    
-    // appConfig = parseArgs(argc, argv);
-    // vector<net_flow> data = readCSV(appConfig.filename);
-    // cout<<data.front().param<<endl;
-    // cout<<"""AAAAA"""<<endl;
+    //appConfig = parseArgs(argc, argv);
+    //vector<net_flow> data = readCSV(appConfig.filename);
+    //cout<<data[0].value<<" cabou "<<endl;
 
-    int n = 1000;
-    int m = 1000;
-    vector<long long> X;
-    set<long long> unique;
+    //meter um rabin karp
 
-    for(long long i = 0; i<n; i++) {
-        long long val = rand() % m;
-        unique.insert(val);
-        X.push_back(val);
-    }
+    // long long k = 40;
+    // KMV sketch(k, data.size());
 
-    long long k = 40;
-    KMV sketch(k, m);
+    string nome = "A";
+    string nome2 = "Google";
 
-    for (auto x:X){
-        sketch.update(x);
-    } 
-
-    long long h0 = sketch.query();
-    cout<<"h0"<<" "<<h0<<" "<<"real= "<<unique.size()<<endl;
-
+    hash<string> hasher;
+    auto hashed = hasher(nome);
+    auto hashed2 = hasher(nome2);
+    cout<<nome<<" "<<hashed<<endl;
+    cout<<nome2<<" "<<hashed2<<endl;
          
     return 0;
 }
