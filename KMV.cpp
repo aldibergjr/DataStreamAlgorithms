@@ -5,6 +5,8 @@
 #include <sstream>
 #include <fstream>
 #include<bits/stdc++.h> 
+#include <math.h>   
+#include <random>
 
 using namespace std;
 
@@ -29,6 +31,8 @@ struct CONFIGS {
 };
 
 CONFIGS appConfig;
+random_device rd;
+mt19937 gen(rd());
 
 vector<string> readCsvLine(istream& str)
 {
@@ -83,18 +87,21 @@ vector<net_flow> readCSV( string input_f){
     }
     return data;
 }
+//mudare calculo do hash
+//inicialização das variavei A e B com uma distribuição random de um primo
+//calculo do K (estudar porque é esse)
+long long prime = (1UL <<61) -1;
 
 class KMV{
     public:
         long long k;
-        long long R;
         vector<long long> min_vals;
-        long long a = (1UL <<61) -1;
+        long long a = uniform_int_distribution<long long>(1, prime)(gen);
+        long long b = uniform_int_distribution<long long>(1, prime)(gen);
 
 
     KMV(long long init_k, long long m){
         k = init_k;
-        R = m*m*m;
     }
 
     long long hash(long long x);
@@ -103,7 +110,7 @@ class KMV{
 };
 
 long long KMV::hash(long long x) {
-    return ((a*x) % 18446744073709551615ULL) % R;
+    return (((a*x) % 18446744073709551615ULL) + b) % prime;
 }
 
 void KMV::update(long long val) {
@@ -123,7 +130,7 @@ long long KMV::query(){
     if (min_vals.size() < k)
         return min_vals.size();
     else 
-        return (R * k)/ min_vals[k-1];
+        return prime * ((double)k/(double)min_vals[k-1]);
 }
 
 int main(int argc, char * argv[]) 
@@ -131,7 +138,7 @@ int main(int argc, char * argv[])
     srand(time(0));
     clock_t tStart = clock();
     
-    //read headers    
+    // read headers    
     appConfig = parseArgs(argc, argv);
     vector<net_flow> data = readCSV(appConfig.filename);
     set<long long> real;
@@ -139,28 +146,27 @@ int main(int argc, char * argv[])
     hash<string> hasher;
 
     long long m = data.size();
-    long long R = m*m*m;
+
     /*
         k = max(
             4m/thetaR,
             32/theta^2*1/delta
         )
     */
-    long long k = max<long long int>(
-        ((4*m)/(appConfig.error_bound*R)),
-        ((1/appConfig.error_probability)*(32/(appConfig.error_bound*appConfig.error_bound)))
-    );
+    long long k = ((5)/(0.25 * appConfig.error_bound * appConfig.error_bound));
     
     KMV sketch(k, m);
     
     cout<< k <<endl;
     cout<< m <<endl;
+
     for(auto d:data){
         auto hashed = hasher(d.value);
         real.insert(hashed);
         sketch.update(hashed);
     }
-    cout<<"duration: "<<clock() - tStart<<endl<<endl;
+
+    cout<<"duration: "<<(clock() - tStart)/1000<<endl<<endl;
 
     cout<<"h0 "<<sketch.query()<<" "<<real.size()<<endl;
          
