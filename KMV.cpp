@@ -87,15 +87,29 @@ vector<net_flow> readCSV( string input_f){
     }
     return data;
 }
-//mudare calculo do hash
-//inicialização das variavei A e B com uma distribuição random de um primo
-//calculo do K (estudar porque é esse)
+
+long long getMedian(vector<long long> values){
+    size_t size = values.size();
+
+    if (size == 0){
+        return 0; 
+    } else {
+        sort(values.begin(), values.end());
+        if (size % 2 == 0) {
+            return (values[size / 2 - 1] + values[size / 2]) / 2;
+        } else {
+            return values[size / 2];
+        }
+  }
+}
+
 long long prime = (1UL <<61) -1;
 
 class KMV{
     public:
         long long k;
-        vector<long long> min_vals;
+        priority_queue<long long> min_vals;
+        unordered_set<long long> Kvals;
         long long a = uniform_int_distribution<long long>(1, prime)(gen);
         long long b = uniform_int_distribution<long long>(1, prime)(gen);
 
@@ -116,12 +130,13 @@ long long KMV::hash(long long x) {
 void KMV::update(long long val) {
     long long h = hash(val);
 
-    if (find(min_vals.begin(), min_vals.end(), val) == min_vals.end()) {
-        min_vals.push_back(h);
-        sort(min_vals.begin(), min_vals.end());
-        if (min_vals.size() > k) {
-            min_vals.pop_back();
-        }
+    if(Kvals.count(h)) return;
+    if(min_vals.size() < k || min_vals.top() > h) {
+        Kvals.insert(h);
+        min_vals.push(h);
+    }else if(min_vals.size() > k) {
+        Kvals.erase(min_vals.top());
+        min_vals.pop();
     }
 
 }
@@ -130,7 +145,7 @@ long long KMV::query(){
     if (min_vals.size() < k)
         return min_vals.size();
     else 
-        return prime * ((double)k/(double)min_vals[k-1]);
+        return prime * ((double)k/(double)min_vals.top());
 }
 
 int main(int argc, char * argv[]) 
@@ -147,28 +162,28 @@ int main(int argc, char * argv[])
 
     long long m = data.size();
 
-    /*
-        k = max(
-            4m/thetaR,
-            32/theta^2*1/delta
-        )
-    */
     long long k = ((5)/(0.25 * appConfig.error_bound * appConfig.error_bound));
-    
-    KMV sketch(k, m);
-    
-    cout<< k <<endl;
-    cout<< m <<endl;
+    long long S = 4 * log(1/appConfig.error_probability);
 
-    for(auto d:data){
-        auto hashed = hasher(d.value);
-        real.insert(hashed);
-        sketch.update(hashed);
+    vector<long long> estimatedValues;
+
+    while (S) {
+        KMV sketch(k, m);
+
+        for(auto d:data){
+            auto hashed = hasher(d.value);
+            real.insert(hashed);
+            sketch.update(hashed);
+        }
+
+        estimatedValues.push_back(sketch.query());
+        S--;
     }
 
-    cout<<"duration: "<<(clock() - tStart)/1000<<endl<<endl;
+    cout<<"k size: "<<k<<endl;
+    cout<<"h0: "<<getMedian(estimatedValues)<<" real size: "<<real.size()<<endl;
+    cout<<"duration: "<<(clock() - tStart)/CLOCKS_PER_SEC<<endl<<endl;
 
-    cout<<"h0 "<<sketch.query()<<" "<<real.size()<<endl;
          
     return 0;
 }
