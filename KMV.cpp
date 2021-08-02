@@ -5,6 +5,8 @@
 #include <sstream>
 #include <fstream>
 #include<bits/stdc++.h> 
+#include <math.h>   
+#include <random>
 
 using namespace std;
 
@@ -22,13 +24,15 @@ struct netComparator{
 
 struct CONFIGS {
     int field_no;
-    int error_bound;
-    int error_probability;
+    double error_bound;
+    double error_probability;
     int size;
     string filename;
 };
 
 CONFIGS appConfig;
+random_device rd;
+mt19937 gen(rd());
 
 vector<string> readCsvLine(istream& str)
 {
@@ -57,9 +61,9 @@ CONFIGS parseArgs(int argc, char * argv[]){
         if(paramName.compare("--target") == 0){
             appConfig.field_no = stoi(argv[++i]);
         }else if(paramName.compare("--eps") == 0){
-            appConfig.error_bound = stoi(argv[++i]);
+            appConfig.error_bound = stod(argv[++i]);
         }else if(paramName.compare("--delta") == 0){
-            appConfig.error_probability = stoi(argv[++i]);
+            appConfig.error_probability = stod(argv[++i]);
         } else {
             appConfig.filename = argv[i];
         }
@@ -84,17 +88,34 @@ vector<net_flow> readCSV( string input_f){
     return data;
 }
 
+long long getMedian(vector<long long> values){
+    size_t size = values.size();
+
+    if (size == 0){
+        return 0; 
+    } else {
+        sort(values.begin(), values.end());
+        if (size % 2 == 0) {
+            return (values[size / 2 - 1] + values[size / 2]) / 2;
+        } else {
+            return values[size / 2];
+        }
+  }
+}
+
+long long prime = (1UL <<61) -1;
+
 class KMV{
     public:
         long long k;
-        long long R;
-        vector<long long> min_vals;
-        long long a = (1UL <<61) -1;
+        priority_queue<long long> min_vals;
+        unordered_set<long long> Kvals;
+        long long a = uniform_int_distribution<long long>(1, prime)(gen);
+        long long b = uniform_int_distribution<long long>(1, prime)(gen);
 
 
     KMV(long long init_k, long long m){
         k = init_k;
-        R = m*m*m;
     }
 
     long long hash(long long x);
@@ -103,18 +124,19 @@ class KMV{
 };
 
 long long KMV::hash(long long x) {
-    return ((a*x) % 18446744073709551615ULL) % R;
+    return (((a*x) % 18446744073709551615ULL) + b) % prime;
 }
 
 void KMV::update(long long val) {
     long long h = hash(val);
 
-    if (find(min_vals.begin(), min_vals.end(), val) == min_vals.end()) {
-        min_vals.push_back(h);
-        sort(min_vals.begin(), min_vals.end());
-        if (min_vals.size() > k) {
-            min_vals.pop_back();
-        }
+    if(Kvals.count(h)) return;
+    if(min_vals.size() < k || min_vals.top() > h) {
+        Kvals.insert(h);
+        min_vals.push(h);
+    }else if(min_vals.size() > k) {
+        Kvals.erase(min_vals.top());
+        min_vals.pop();
     }
 
 }
@@ -123,27 +145,45 @@ long long KMV::query(){
     if (min_vals.size() < k)
         return min_vals.size();
     else 
-        return (R * k)/ min_vals[k-1];
+        return prime * ((double)k/(double)min_vals.top());
 }
 
 int main(int argc, char * argv[]) 
 {
     srand(time(0));
+    clock_t tStart = clock();
     
-    //read headers    
+    // read headers    
     appConfig = parseArgs(argc, argv);
     vector<net_flow> data = readCSV(appConfig.filename);
+    set<long long> real;
 
     hash<string> hasher;
 
-    long long k = 40;
-    KMV sketch(k, data.size());
+    long long m = data.size();
 
-    for(int i=0;i<10;i++){
-        auto hashed = hasher(data[i].value);
-        sketch.update(hashed);
+    long long k = ((5)/(0.25 * appConfig.error_bound * appConfig.error_bound));
+    long long S = 4 * log(1/appConfig.error_probability);
+
+    vector<long long> estimatedValues;
+
+    while (S) {
+        KMV sketch(k, m);
+
+        for(auto d:data){
+            auto hashed = hasher(d.value);
+            real.insert(hashed);
+            sketch.update(hashed);
+        }
+
+        estimatedValues.push_back(sketch.query());
+        S--;
     }
-    cout<<sketch.query()<<endl;
+
+    cout<<"k size: "<<k<<endl;
+    cout<<"h0: "<<getMedian(estimatedValues)<<" real size: "<<real.size()<<endl;
+    cout<<"duration: "<<(clock() - tStart)/CLOCKS_PER_SEC<<endl<<endl;
+
          
     return 0;
 }
