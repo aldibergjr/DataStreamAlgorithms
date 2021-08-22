@@ -2,6 +2,67 @@
 
 using namespace std;
 
+vector<string> readCsvLine(istream& str)
+{
+    vector<string> result;
+    string line;
+    getline(str,line);
+
+    stringstream lineStream(line);
+    string cell;
+
+    while(getline(lineStream,cell, ','))
+    {
+        result.push_back(cell);
+    }
+    if (!lineStream && cell.empty())
+    {
+        result.push_back("");
+    }
+    return result;
+}
+
+struct CONFIGS {
+    int id_field_no;
+    double eps;
+    long long universe_size;
+    string query_args;
+    string filename;
+    string execution;
+    float query;
+    bool compare;
+};
+
+CONFIGS appConfig;
+
+CONFIGS parseArgs(int argc, char * argv[]){
+    CONFIGS appConfig;
+    appConfig.compare = false;
+    for(int i = 1; i < argc; i++){
+        string paramName = argv[i];
+        if(paramName.compare("--val") == 0){
+            appConfig.id_field_no = stoi(argv[++i]);
+        }else if(paramName.compare("--eps") == 0){
+            appConfig.eps = atof(argv[++i]);
+        }else if(paramName.compare("--univ") == 0){
+            appConfig.universe_size = stoll(argv[++i]);
+        // }else if(paramName.compare("--in") == 0){
+        //     appConfig.query_args = paramName;
+        }else if(paramName.compare("rank") == 0 || paramName.compare("quant") == 0){
+            appConfig.execution = paramName;
+            appConfig.query = atof(argv[++i]);
+        // }else if(paramName.compare("-h") == 0 || paramName.compare("--help") == 0){
+        //     appConfig.help_exec = true;
+        // }else if(paramName.compare("--compare") == 0){
+        //     appConfig.compare = true;
+        }else {
+            appConfig.filename = argv[i];
+        }
+
+    }
+    return appConfig;
+}
+
 class Node{ 
     public:
         long long weight;
@@ -172,65 +233,94 @@ void traverse(Node* root){
     traverse(crawl->childs[1]);
 }
 
-int main(){
+Qdigest sketch(appConfig.universe_size, appConfig.eps);
+
+vector<pair<long long,long long>> readCSV(string input_f){
+    ifstream input(input_f);
+    //read headers 
+    readCsvLine(input);
+
+    vector<pair<long long, long long>> data;
+    while(input.peek() != EOF){        
+        vector<string> line = readCsvLine(input);
+        int value = stoll(line[appConfig.id_field_no]);
+
+        if(value<=appConfig.universe_size){
+            sketch.update(value,1);
+            if(true)
+                data.push_back({value,1});
+        }
+    }
+    sort(data.begin(), data.end());
+    return data;
+}
+
+void ExecuteQD(){
     random_device rd;
     mt19937 gen(rd());
 
-    long long univ = 10;
-    int max_w = 50;
-    double eps = 0.1;
-    int n = 6;
+    // long long univ = 256;
+    // int max_w = 50;
+    // double eps = 0.1;
+    // int n = 1000;
 
-
-
-    vector<pair<int,int>> stream;
+    vector<pair<long long,long long>> stream = readCSV(appConfig.filename);
+    
     // for (int i=0;i<n;i++){
     //     int x = uniform_int_distribution<long long>(1, univ)(gen);
     //     int w = uniform_int_distribution<long long>(1, max_w)(gen);
     //     stream.push_back({x,w});
     // }
-    stream.push_back({3,29});
-    stream.push_back({2, 9});
-    stream.push_back({2, 44});
-    stream.push_back({6, 200});
-    stream.push_back({1, 28});
-    stream.push_back({1, 48});
+    // stream.push_back({3,29});
+    // stream.push_back({2, 9});
+    // stream.push_back({2, 44});
+    // stream.push_back({6, 200});
+    // stream.push_back({1, 28});
+    // stream.push_back({1, 48});
     
-    vector<long long>true_ranks(univ+1,0);
-    Qdigest sketch(univ, eps);
+    vector<long long>true_ranks(appConfig.universe_size+1,0);
     long long total_weight = 0;
 
     for(auto x:stream){
         // cout<<x.first<<" "<<x.second<<endl;
         total_weight +=x.second;
         true_ranks[x.first] += x.second;
-        sketch.update(x.first,x.second);
     }
     // cout<<endl;
 
-    for(int i=1;i<=univ;i++){
+    for(int i=1;i<=appConfig.universe_size;i++){
         // cout<<i<<" "<<true_ranks[i]<<endl;
         true_ranks[i] += true_ranks[i-1];
     }
     // cout<<endl;
 
-    // for(int x=1;x<=univ;x++){
+    // for(int x=1;x<=appConfig.universe_size;x++){
     //     cout<<"x = "<<x<<endl;
     //     cout<<"rank: "<<sketch.rank(x)<<" ";
     //     cout<<"true rank: "<<true_ranks[x-1]<<endl;
     //     cout<<"error: "<<true_ranks[x-1] - sketch.rank(x)<<endl;
     //     cout<<"------"<<endl;
     // }
-    cout<<sketch.quantile(0.5,total_weight)<<endl;
+    // cout<<sketch.quantile(0.5,total_weight)<<endl;
 
     // cout<<"estimated: "<<sketch.rank(4)<<endl;
     // cout<<"real rank: "<<true_ranks[3]<<endl;
     
-    // traverse(sketch.root);
+    traverse(sketch.root);
     // cout<<endl<<endl;
     // sketch.compress();
     // traverse(sketch.root);
+    return; 
+}
 
-    
+int main(int argc, char * argv[]){
+    appConfig = parseArgs(argc, argv);
+    // cout<<appConfig.id_field_no<<endl;
+    // cout<<appConfig.eps<<endl;
+    // cout<<appConfig.universe_size<<endl;
+    // cout<<appConfig.filename<<endl;
+    // cout<<appConfig.execution<<endl;
+    // cout<<appConfig.query<<endl;
+    ExecuteQD();
     return 0;
 }
