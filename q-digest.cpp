@@ -1,0 +1,236 @@
+#include<bits/stdc++.h>
+
+using namespace std;
+
+class Node{ 
+    public:
+        long long weight;
+        Node* childs[2];
+
+    Node(long long w){
+        weight=w;
+        childs[0] = NULL;
+        childs[1] = NULL;
+    }
+
+    long long tree_weight();
+};
+
+long long Node::tree_weight() {
+    if(this == NULL) return 0;
+
+    long long rank = weight;
+    rank += childs[0]->tree_weight();
+    rank += childs[1]->tree_weight();
+    return rank;
+}
+
+class Qdigest{
+    public: 
+        long long univ;  
+        double eps; 
+        long long total_weight; 
+        long long capacity; 
+        Node* root; 
+    Qdigest(long long u, double e){
+        univ = u;
+        eps = e;
+        total_weight = 0;
+        root = new Node(0);
+    }
+
+    void update(long long x, long long w);
+    long long rank(long long x);
+    void compress();
+    long long quantile(double q, long long streamSize);
+};
+
+void Qdigest::update(long long x, long long w){
+    total_weight += w; 
+    capacity = eps*total_weight/(ceil(log2(univ))); 
+    Node* v = root;
+    long long l = 0, r = univ;
+    while (w && (r-l)>1){
+        long long avail = capacity - v->weight;
+        long long added = min(w,avail);
+        v->weight += added;
+        // cout<<capacity<<endl;
+        w = w - added;
+        long long mid = (l+r)/2;
+        
+        int next_curr = 0;
+        if(x<mid) {
+            next_curr = 0;
+            r = mid;
+        } else {
+            next_curr = 1;
+            l = mid;
+        }
+        if(v->childs[next_curr]==NULL){
+            v->childs[next_curr] = new Node(0);
+        }
+        v = v->childs[next_curr];
+    }
+    v->weight+=w;
+}
+
+long long Qdigest::rank(long long x){
+    if(x < 0 || univ<=x){
+        return 0;
+    }
+    Node* v = root;
+    long long l = 0, r = univ;
+    long long result = 0;
+    while (v!=NULL && (r-l)>1){
+        long long mid = (l+r)/2;
+        if(x<mid){
+            r = mid;
+            v = v->childs[0];
+        } else {
+            result += v->childs[0] ? v->childs[0]->tree_weight() : 0;
+            v = v->childs[1];
+            l = mid;
+        }
+    }
+    return result;
+}
+
+pair<Node*,long long> _compress(Node* crawl,  long long capacity, long long avail_up){
+    // cout<<"oi"<<endl;
+    cout<<crawl->weight<<endl;
+
+    long long move_up = 0;
+        
+    for (int i = 0 ;i<2;i++){
+        if(crawl->childs[i]!=NULL){
+            Node* child = crawl->childs[i];
+            long long avail_here = capacity - crawl->weight;
+            
+            pair<Node*, long long> result =_compress(child, capacity, avail_up + avail_here);
+            Node* new_child = result.first; 
+            long long move_up_from_child = result.second;
+
+            crawl->childs[i] = new_child;
+            long long put_here = min(avail_here, move_up_from_child);
+            crawl->weight += put_here;
+            move_up += (move_up_from_child - put_here);             
+        }
+    }
+
+    long long move_up_from_here = min(avail_up, crawl->weight);
+    move_up+=move_up_from_here;
+    crawl->weight -= move_up_from_here;
+
+    if(crawl->weight == 0 && crawl->childs[0] == NULL && crawl->childs[1] == NULL)
+        return {NULL, move_up};
+    else
+        return {crawl, move_up};
+}
+
+void Qdigest::compress(){
+    capacity = eps*total_weight/(ceil(log2(univ)));
+
+    cout<<"Compressing with capacity: "<<capacity<<endl;
+    _compress(root,capacity,0);
+    cout<<endl;
+
+    return;
+}
+
+long long Qdigest::quantile(double q, long long streamSize){
+    long long target = round(streamSize * q);
+    cout<<target<<endl;
+    long long l = 0, r = univ;
+
+    long long x = (r+l)/2;
+    long long c_rank = 0;
+
+    for(long long i = 0;i<=round(log2(univ));i++){
+        if(target==c_rank){
+            return x;
+        }
+        c_rank = rank(x);
+        if(c_rank > target){
+            r = x;
+        } else {
+            l = x;
+        }
+        x = ((float)(r+l)/2);
+    }
+    return x;
+}
+
+int cnt = 1;
+void traverse(Node* root){
+    if(root == NULL){
+        cout<<cnt++<<": "<<"null"<<endl;
+        return;
+    }
+    Node* crawl = root;
+    cout<<cnt++<<": "<<crawl->weight<<endl;
+    traverse(crawl->childs[0]);
+    traverse(crawl->childs[1]);
+}
+
+int main(){
+    random_device rd;
+    mt19937 gen(rd());
+
+    long long univ = 10;
+    int max_w = 50;
+    double eps = 0.1;
+    int n = 6;
+
+
+
+    vector<pair<int,int>> stream;
+    // for (int i=0;i<n;i++){
+    //     int x = uniform_int_distribution<long long>(1, univ)(gen);
+    //     int w = uniform_int_distribution<long long>(1, max_w)(gen);
+    //     stream.push_back({x,w});
+    // }
+    stream.push_back({3,29});
+    stream.push_back({2, 9});
+    stream.push_back({2, 44});
+    stream.push_back({6, 200});
+    stream.push_back({1, 28});
+    stream.push_back({1, 48});
+    
+    vector<long long>true_ranks(univ+1,0);
+    Qdigest sketch(univ, eps);
+    long long total_weight = 0;
+
+    for(auto x:stream){
+        // cout<<x.first<<" "<<x.second<<endl;
+        total_weight +=x.second;
+        true_ranks[x.first] += x.second;
+        sketch.update(x.first,x.second);
+    }
+    // cout<<endl;
+
+    for(int i=1;i<=univ;i++){
+        // cout<<i<<" "<<true_ranks[i]<<endl;
+        true_ranks[i] += true_ranks[i-1];
+    }
+    // cout<<endl;
+
+    // for(int x=1;x<=univ;x++){
+    //     cout<<"x = "<<x<<endl;
+    //     cout<<"rank: "<<sketch.rank(x)<<" ";
+    //     cout<<"true rank: "<<true_ranks[x-1]<<endl;
+    //     cout<<"error: "<<true_ranks[x-1] - sketch.rank(x)<<endl;
+    //     cout<<"------"<<endl;
+    // }
+    cout<<sketch.quantile(0.5,total_weight)<<endl;
+
+    // cout<<"estimated: "<<sketch.rank(4)<<endl;
+    // cout<<"real rank: "<<true_ranks[3]<<endl;
+    
+    // traverse(sketch.root);
+    // cout<<endl<<endl;
+    // sketch.compress();
+    // traverse(sketch.root);
+
+    
+    return 0;
+}

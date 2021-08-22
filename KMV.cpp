@@ -103,15 +103,15 @@ long long getMedian(vector<long long> values){
   }
 }
 
-long long prime = (1UL <<61) -1;
+long long R = (1UL <<61) -1;
 
 class KMV{
     public:
         long long k;
         priority_queue<long long> min_vals;
         unordered_set<long long> Kvals;
-        long long a = uniform_int_distribution<long long>(1, prime)(gen);
-        long long b = uniform_int_distribution<long long>(1, prime)(gen);
+        long long a = uniform_int_distribution<long long>(1, R)(gen);
+        long long b = uniform_int_distribution<long long>(1, R)(gen);
 
 
     KMV(long long init_k, long long m){
@@ -124,7 +124,7 @@ class KMV{
 };
 
 long long KMV::hash(long long x) {
-    return (((a*x) % 18446744073709551615ULL) + b) % prime;
+    return (((a*x) % 18446744073709551615ULL) + b) % R;
 }
 
 void KMV::update(long long val) {
@@ -134,7 +134,8 @@ void KMV::update(long long val) {
     if(min_vals.size() < k || min_vals.top() > h) {
         Kvals.insert(h);
         min_vals.push(h);
-    }else if(min_vals.size() > k) {
+    }
+    if(min_vals.size() > k) {
         Kvals.erase(min_vals.top());
         min_vals.pop();
     }
@@ -145,19 +146,19 @@ long long KMV::query(){
     if (min_vals.size() < k)
         return min_vals.size();
     else 
-        return prime * ((double)k/(double)min_vals.top());
+        return R * ((double)k/(double)min_vals.top());
 }
 
 int main(int argc, char * argv[]) 
 {
     srand(time(0));
-    clock_t tStart = clock();
     
     // read headers    
     appConfig = parseArgs(argc, argv);
     vector<net_flow> data = readCSV(appConfig.filename);
     set<long long> real;
 
+    clock_t tStart = clock();
     hash<string> hasher;
 
     long long m = data.size();
@@ -165,6 +166,9 @@ int main(int argc, char * argv[])
     long long k = ((5)/(0.25 * appConfig.error_bound * appConfig.error_bound));
     long long S = 4 * log(1/appConfig.error_probability);
 
+    cout<<"k size: "<<k<<endl;
+    cout<<"m size: "<<m <<endl;
+    cout<<"S size: "<<S<<endl;
     vector<long long> estimatedValues;
 
     while (S) {
@@ -180,7 +184,6 @@ int main(int argc, char * argv[])
         S--;
     }
 
-    cout<<"k size: "<<k<<endl;
     cout<<"h0: "<<getMedian(estimatedValues)<<" real size: "<<real.size()<<endl;
     cout<<"duration: "<<(clock() - tStart)/CLOCKS_PER_SEC<<endl<<endl;
 
