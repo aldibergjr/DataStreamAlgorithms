@@ -286,6 +286,7 @@ void ExecuteQD(){
         for(auto x:appConfig.queryValues){
             cout<<"Estimated Rank "<<x<<": ";
             result = sketch.rank(x);
+            real = true_ranks[x-1];
             cout<<result<<" ";
             cout<<"Real Rank"<<x<<": "<<true_ranks[x-1]<<endl;
             cout<<"------"<<endl;
@@ -310,7 +311,7 @@ void ExecuteQD(){
     if(appConfig.analysis){
         stringstream execution_line; 
         ofstream of;
-        of.open("./reports/report1.csv", ios_base::app);
+        of.open("./reports/report6.csv", ios_base::app);
         execution_line << appConfig.id_field_no << "," << appConfig.eps << "," << appConfig.universe_size  << "," <<appConfig.execution << "," <<appConfig.queryValues[0]<<","<<result << "," <<real << "," <<ttaken << "," <<memory;
         cout << execution_line.str() << endl;
         of << execution_line.str() << "\n";
@@ -322,12 +323,6 @@ void ExecuteQD(){
 int main(int argc, char * argv[]){
     appConfig = parseArgs(argc, argv);
     sketch = Qdigest(appConfig.universe_size, appConfig.eps);
-    // cout<<appConfig.id_field_no<<endl;
-    // cout<<appConfig.eps<<endl;
-    // cout<<appConfig.universe_size<<endl;
-    // cout<<appConfig.filename<<endl;
-    // cout<<appConfig.execution<<endl;
-    // cout<<appConfig.query<<endl;
     ExecuteQD();
     return 0;
 }
