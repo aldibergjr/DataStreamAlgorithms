@@ -1,3 +1,4 @@
+#include <sys/resource.h>
 #include<bits/stdc++.h>
 
 using namespace std;
@@ -32,6 +33,7 @@ struct CONFIGS {
     vector<double> queryValues;
     bool compare;
     bool help_exec;
+    bool analysis;
 };
 
 CONFIGS appConfig;
@@ -39,6 +41,7 @@ CONFIGS appConfig;
 CONFIGS parseArgs(int argc, char * argv[]){
     CONFIGS appConfig;
     appConfig.compare = false;
+    appConfig.analysis = true;
     for(int i = 1; i < argc; i++){
         string paramName = argv[i];
         if(paramName.compare("--val") == 0){
@@ -259,7 +262,10 @@ vector<pair<long long,long long>> readCSV(string input_f){
 void ExecuteQD(){
     random_device rd;
     mt19937 gen(rd());
+    struct rusage usage;
+    time_t start, end;
 
+    time(&start);
     vector<pair<long long,long long>> stream = readCSV(appConfig.filename);
     
     vector<long long>true_ranks(appConfig.universe_size+1,0);
@@ -274,9 +280,13 @@ void ExecuteQD(){
         true_ranks[i] += true_ranks[i-1];
     }
 
+    long long real;
+    long long result;
     if(appConfig.execution=="rank"){
         for(auto x:appConfig.queryValues){
-            cout<<"Estimated Rank "<<x<<": "<<sketch.rank(x)<<" ";
+            cout<<"Estimated Rank "<<x<<": ";
+            result = sketch.rank(x);
+            cout<<result<<" ";
             cout<<"Real Rank"<<x<<": "<<true_ranks[x-1]<<endl;
             cout<<"------"<<endl;
         }
@@ -284,14 +294,28 @@ void ExecuteQD(){
         for(auto x:appConfig.queryValues){
             cout<<"Estimated Rank for q: "<<x<<", ";
             cout<<"targert Rank: "<<(long long)round(stream.size() * x)<<endl;
-            long long result = sketch.quantile(x,stream.size()); 
-            cout<<sketch.quantile(x,stream.size())<<" "<<sketch.rank(result)<<endl;
+            long long aux = sketch.quantile(x,stream.size()); 
+            result = sketch.rank(aux);
+            real = round(stream.size() * x);
+            cout<<aux<<" "<<real<<endl;
             cout<<"------"<<endl;
         }
     }
-    
 
+    time(&end);
+    getrusage(RUSAGE_SELF, &usage);
+    double ttaken = double(end -start);
+    long memory = usage.ru_maxrss;
 
+    if(appConfig.analysis){
+        stringstream execution_line; 
+        ofstream of;
+        of.open("./reports/report1.csv", ios_base::app);
+        execution_line << appConfig.id_field_no << "," << appConfig.eps << "," << appConfig.universe_size  << "," <<appConfig.execution << "," <<appConfig.queryValues[0]<<","<<result << "," <<real << "," <<ttaken << "," <<memory;
+        cout << execution_line.str() << endl;
+        of << execution_line.str() << "\n";
+        of.close();
+    }
     return; 
 }
 
