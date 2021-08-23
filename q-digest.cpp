@@ -31,6 +31,7 @@ struct CONFIGS {
     string execution;
     float query;
     bool compare;
+    bool help_exec;
 };
 
 CONFIGS appConfig;
@@ -51,8 +52,8 @@ CONFIGS parseArgs(int argc, char * argv[]){
         }else if(paramName.compare("rank") == 0 || paramName.compare("quant") == 0){
             appConfig.execution = paramName;
             appConfig.query = atof(argv[++i]);
-        // }else if(paramName.compare("-h") == 0 || paramName.compare("--help") == 0){
-        //     appConfig.help_exec = true;
+        }else if(paramName.compare("-h") == 0 || paramName.compare("--help") == 0){
+            appConfig.help_exec = true;
         // }else if(paramName.compare("--compare") == 0){
         //     appConfig.compare = true;
         }else {
@@ -96,6 +97,7 @@ class Qdigest{
     Qdigest(long long u, double e){
         univ = u;
         eps = e;
+        capacity = 0;
         total_weight = 0;
         root = new Node(0);
     }
@@ -263,7 +265,6 @@ void ExecuteQD(){
     // int max_w = 50;
     // double eps = 0.1;
     // int n = 1000;
-
     vector<pair<long long,long long>> stream = readCSV(appConfig.filename);
     
     // for (int i=0;i<n;i++){
@@ -294,19 +295,19 @@ void ExecuteQD(){
     }
     // cout<<endl;
 
-    // for(int x=1;x<=appConfig.universe_size;x++){
-    //     cout<<"x = "<<x<<endl;
-    //     cout<<"rank: "<<sketch.rank(x)<<" ";
-    //     cout<<"true rank: "<<true_ranks[x-1]<<endl;
-    //     cout<<"error: "<<true_ranks[x-1] - sketch.rank(x)<<endl;
-    //     cout<<"------"<<endl;
-    // }
+    for(int x=1;x<=appConfig.universe_size;x++){
+        cout<<"x = "<<x<<endl;
+        cout<<"rank: "<<sketch.rank(x)<<" ";
+        cout<<"true rank: "<<true_ranks[x-1]<<endl;
+        cout<<"error: "<<true_ranks[x-1] - sketch.rank(x)<<" expected max error: "<<total_weight*appConfig.eps<<endl;
+        cout<<"------"<<endl;
+    }
     // cout<<sketch.quantile(0.5,total_weight)<<endl;
 
     // cout<<"estimated: "<<sketch.rank(4)<<endl;
     // cout<<"real rank: "<<true_ranks[3]<<endl;
     
-    traverse(sketch.root);
+    // traverse(sketch.root);
     // cout<<endl<<endl;
     // sketch.compress();
     // traverse(sketch.root);
@@ -315,6 +316,7 @@ void ExecuteQD(){
 
 int main(int argc, char * argv[]){
     appConfig = parseArgs(argc, argv);
+    sketch = Qdigest(appConfig.universe_size, appConfig.eps);
     // cout<<appConfig.id_field_no<<endl;
     // cout<<appConfig.eps<<endl;
     // cout<<appConfig.universe_size<<endl;
