@@ -163,7 +163,7 @@ long long Qdigest::rank(long long x){
 }
 
 pair<Node*,long long> _compress(Node* crawl,  long long capacity, long long avail_up){
-    cout<<crawl->weight<<endl;
+    // cout<<crawl->weight<<endl;
 
     long long move_up = 0;
         
@@ -196,9 +196,9 @@ pair<Node*,long long> _compress(Node* crawl,  long long capacity, long long avai
 void Qdigest::compress(){
     capacity = eps*total_weight/(ceil(log2(univ)));
 
-    cout<<"Compressing with capacity: "<<capacity<<endl;
+    // cout<<"Compressing with capacity: "<<capacity<<endl;
     _compress(root,capacity,0);
-    cout<<endl;
+    // cout<<endl;
 
     return;
 }
@@ -251,6 +251,7 @@ vector<pair<long long,long long>> readCSV(string input_f){
 
         if(value<=appConfig.universe_size){
             sketch.update(value,1);
+            // sketch.compress();
             if(true)
                 data.push_back({value,1});
         }
@@ -311,7 +312,7 @@ void ExecuteQD(){
     if(appConfig.analysis){
         stringstream execution_line; 
         ofstream of;
-        of.open("./reports/report6.csv", ios_base::app);
+        of.open("./reports/report8.csv", ios_base::app);
         execution_line << appConfig.id_field_no << "," << appConfig.eps << "," << appConfig.universe_size  << "," <<appConfig.execution << "," <<appConfig.queryValues[0]<<","<<result << "," <<real << "," <<ttaken << "," <<memory;
         cout << execution_line.str() << endl;
         of << execution_line.str() << "\n";
